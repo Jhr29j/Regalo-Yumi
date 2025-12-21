@@ -1,0 +1,225 @@
+/* ===============================
+   RESET GENERAL
+================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+body {
+    background: #0b0b0f;
+    color: white;
+}
+
+/* ===============================
+   HERO
+================================ */
+.hero {
+    height: 100vh;
+    background: linear-gradient(135deg, #2b1055, #1b3b6f);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.hero h1 {
+    font-size: 3rem;
+    margin-bottom: 10px;
+}
+
+.hero p {
+    font-size: 1.3rem;
+    color: #c7bfff;
+}
+
+.hero span {
+    margin-top: 20px;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* ===============================
+   SECCIONES GENERALES
+================================ */
+section {
+    padding: 70px 20px;
+    max-width: 1200px;
+    margin: auto;
+}
+
+section h2 {
+    text-align: center;
+    margin-bottom: 40px;
+    font-size: 2rem;
+    color: #bbaaff;
+}
+
+/* ===============================
+   ÁLBUM DE FOTOS - MASONRY JS
+================================ */
+#album {
+    background: #050508;
+    position: relative;
+    min-height: 800px;
+}
+
+.album-container {
+    position: relative;
+    width: 100%;
+    margin: 0 auto;
+    min-height: 600px;
+    transition: height 0.5s ease;
+}
+
+.polaroid {
+    background: white;
+    padding: 10px;
+    padding-bottom: 15px;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+    position: absolute;
+    transition: transform 0.3s ease, opacity 0.8s ease;
+    opacity: 0;
+    transform: translateY(30px) rotate(var(--rotate));
+    overflow: hidden;
+}
+
+.polaroid img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.polaroid:hover {
+    transform: scale(1.05) rotate(var(--rotate)) !important;
+    z-index: 100;
+}
+
+.polaroid.show {
+    opacity: 1;
+    transform: translateY(0) rotate(var(--rotate)) !important;
+}
+
+/* ===============================
+   LOADER
+================================ */
+.loader {
+    text-align: center;
+    padding: 40px 20px;
+    color: #bbaaff;
+    font-size: 1.3rem;
+    background: rgba(11, 11, 15, 0.9);
+    border-radius: 10px;
+    margin: 30px auto;
+    max-width: 500px;
+    display: block;
+    animation: pulse 2s infinite;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+}
+
+.loader.hidden {
+    display: none;
+    animation: none;
+}
+
+/* ===============================
+   TARJETAS INTERACTIVAS
+================================ */
+#cards {
+    background: linear-gradient(180deg, #0b0b0f, #120b2e);
+}
+
+.cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 25px;
+}
+
+.card {
+    perspective: 1000px;
+}
+
+.card-inner {
+    width: 100%;
+    height: 220px;
+    transition: transform 0.8s;
+    transform-style: preserve-3d;
+    cursor: pointer;
+}
+
+.card:hover .card-inner {
+    transform: rotateY(180deg);
+}
+
+.card-front,
+.card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 15px;
+    backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+}
+
+.card-front {
+    background: linear-gradient(135deg, #6a5acd, #4169e1);
+    font-size: 2.5rem;
+}
+
+.card-back {
+    background: white;
+    color: #1b1b1b;
+    transform: rotateY(180deg);
+    font-size: 1rem;
+}
+
+/* ===============================
+    MENSAJE FINAL
+================================ */
+#carta {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    max-width: 100%;
+    height: auto;
+    border: 2px solid #bbaaff;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(187, 170, 255, 0.4);
+}
+
+#final {
+    background: #07070c;
+    text-align: center;
+}
+
+#final p {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    max-width: 600px;
+    margin: auto;
+    color: #d6d6ff;
+}
+
+/* ===============================
+    FOOTER
+================================ */
+footer {
+    padding: 20px;
+    text-align: center;
+    background: black;
+    font-size: 0.85rem;
+    color: #aaa;
+}
