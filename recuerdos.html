@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tus Recuerdos 💜</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ÁLBUM -->
+<section id="album">
+    <h2>Tus Recuerdos</h2>
+    
+    <!-- Selector de contenido -->
+    <div class="content-selector">
+        <button class="selector-btn active" data-type="fotos">Fotos</button>
+        <button class="selector-btn" data-type="videos">Videos</button>
+    </div>
+    
+    <!-- Contenedor para fotos -->
+    <div class="album-container" id="fotos-container"></div>
+    
+    <!-- Contenedor para videos -->
+    <div class="videos-container" id="videos-container"></div>
+</section>
+
+<!-- NAVEGACIÓN -->
+<nav class="main-nav">
+    <button class="nav-btn" data-page="index.html">Inicio</button>
+    <button class="nav-btn active" data-page="recuerdos.html">Recuerdos</button>
+    <button class="nav-btn" data-page="carta.html">Carta</button>
+</nav>
+
+<script src="recuerdos.js"></script>
+</body>
+</html>
