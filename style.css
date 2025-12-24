@@ -585,3 +585,33 @@ NAVEGACIÓN FIJA
         cursor: default;
     }
 }
+
+* Evita cortes laterales en móvil */
+html, body {
+    overflow-x: hidden;
+}
+
+/* Ajustes específicos para carta en móvil */
+@media (max-width: 480px) {
+    #carta {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    .carta-container {
+        width: 100%;
+        padding: 20px 15px;
+        box-sizing: border-box;
+    }
+
+    .carta-texto {
+        max-width: 100%;
+        text-align: left;
+    }
+
+    .carta-imagen {
+        max-width: 280px;
+        width: 100%;
+        height: auto;
+    }
+}
