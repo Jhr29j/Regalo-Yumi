@@ -837,3 +837,89 @@ section {
         height: auto;
     }
 }
+
+/* Agrega esto al final de tu CSS */
+
+/* Mejorar controles de video */
+.video-controls-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+    padding: 15px 10px 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    z-index: 50;
+}
+
+.video-polaroid:hover .video-controls-overlay {
+    opacity: 1;
+}
+
+.control-btn {
+    background: rgba(255, 255, 255, 0.95);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 18px;
+    color: #333;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+}
+
+.control-btn:hover {
+    background: white;
+    transform: scale(1.15);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+/* Placeholder mejorado */
+.polaroid.placeholder, .video-polaroid.placeholder {
+    background: linear-gradient(45deg, #f5f5f5 25%, #ffffff 25%, #ffffff 50%, #f5f5f5 50%, #f5f5f5 75%, #ffffff 75%, #ffffff);
+    background-size: 40px 40px;
+    animation: shimmer 2s linear infinite;
+    opacity: 0.5;
+}
+
+@keyframes shimmer {
+    0% { background-position: -40px 0; }
+    100% { background-position: 40px 0; }
+}
+
+/* Para evitar saltos durante la carga */
+.album-container, .videos-container {
+    transform: translateZ(0);
+    will-change: height;
+}
+
+/* Optimización para móviles */
+@media (max-width: 768px) {
+    .control-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
+    }
+    
+    .video-controls-overlay {
+        padding: 12px 8px 6px;
+        gap: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .control-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+}
