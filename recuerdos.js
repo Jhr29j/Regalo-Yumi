@@ -3,7 +3,7 @@ const fotosContainer = document.getElementById('fotos-container');
 const videosContainer = document.getElementById('videos-container');
 const selectorButtons = document.querySelectorAll('.selector-btn');
 
-// Configuración
+// Configuración optimizada
 const config = {
     columnWidth: 220,
     gap: 25
@@ -17,38 +17,32 @@ let isLoading = false;
 let fotosCargadas = false;
 let videosCargados = false;
 
-// Observador para animaciones
+// Cache para archivos ya verificados
+const cache = {
+    fotosExistentes: null,
+    videosExistentes: null
+};
+
+// Observador optimizado
 const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
         if (entry.isIntersecting) {
-            setTimeout(() => {
-                entry.target.classList.add('show');
-                
-                // Reproducir video automáticamente si está en pantalla
-                if (entry.target.classList.contains('video-polaroid')) {
-                    const video = entry.target.querySelector('video');
-                    if (video) {
-                        if (video.paused) {
-                            video.play().catch(e => {
-                                console.log("Autoplay bloqueado");
-                            });
-                        }
-                    }
-                }
-            }, 100);
-        } else {
-            // Pausar video cuando sale de pantalla
+            entry.target.classList.add('show');
+            
             if (entry.target.classList.contains('video-polaroid')) {
                 const video = entry.target.querySelector('video');
-                if (video && !video.paused) {
-                    video.pause();
+                if (video && video.paused) {
+                    video.play().catch(() => {}); // Ignorar errores de autoplay
                 }
             }
         }
     });
-}, { threshold: 0.3 });
+}, { 
+    threshold: 0.15,
+    rootMargin: '100px' // Cargar antes de que sean visibles
+});
 
-// Calcular columnas
+// Calcular columnas optimizado
 function calcularColumnas() {
     const containerWidth = album.clientWidth;
     columns = Math.max(1, Math.floor(containerWidth / (config.columnWidth + config.gap)));
@@ -56,18 +50,98 @@ function calcularColumnas() {
     return columns;
 }
 
-// Crear polaroid para foto (con rotación determinista basada en el índice)
-function crearPolaroid(imgSrc, imgIndex) {
+// ===============================
+// ESTRATEGIA 1: CARGAR CON LISTA PREDEFINIDA
+// ===============================
+
+// Si sabes exactamente cuántas fotos y videos tienes, ponlos aquí:
+const FOTOS_TOTAL = 148; // Cambia este número por el total REAL de fotos que tienes
+const VIDEOS_TOTAL = 14; // Cambia este número por el total REAL de videos que tienes
+
+// ===============================
+// ESTRATEGIA 2: VERIFICACIÓN MÁS RÁPIDA
+// ===============================
+
+// Verificar archivos en paralelo con tiempo límite
+async function verificarArchivosRapido(basePath, total, extension) {
+    const existentes = [];
+    const checks = [];
+    
+    // Verificar en paralelo (máximo 5 a la vez)
+    for (let i = 1; i <= total; i++) {
+        checks.push(verificarArchivoRapido(`${basePath}${i}${extension}`).then(existe => {
+            if (existe) existentes.push(i);
+        }));
+        
+        // Limitar concurrencia para no sobrecargar
+        if (checks.length >= 5) {
+            await Promise.all(checks);
+            checks.length = 0; // Resetear array
+        }
+    }
+    
+    // Esperar checks restantes
+    if (checks.length > 0) {
+        await Promise.all(checks);
+    }
+    
+    return existentes.sort((a, b) => a - b);
+}
+
+function verificarArchivoRapido(url) {
     return new Promise((resolve) => {
         const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = url;
+        
+        // Timeout rápido
+        setTimeout(() => resolve(false), 500);
+    });
+}
+
+// ===============================
+// ESTRATEGIA 3: CARGAR PROGRESIVAMENTE CON PLACEHOLDERS
+// ===============================
+
+// Crear placeholder inmediato
+function crearPlaceholderPolaroid(index, esVideo = false) {
+    const polaroid = document.createElement('div');
+    polaroid.className = esVideo ? 'video-polaroid placeholder' : 'polaroid placeholder';
+    
+    const rotationPattern = [-2, 1, 0, -1, 2];
+    const rotation = rotationPattern[index % rotationPattern.length];
+    polaroid.style.setProperty('--rotate', `${rotation}deg`);
+    
+    polaroid.style.width = `${config.columnWidth}px`;
+    polaroid.style.height = `${config.columnWidth}px`; // Tamaño cuadrado inicial
+    
+    // Mostrar número para debugging
+    polaroid.setAttribute('data-index', index);
+    
+    return {
+        element: polaroid,
+        width: config.columnWidth,
+        height: config.columnWidth,
+        aspectRatio: 1,
+        index: index,
+        isPlaceholder: true,
+        esVideo: esVideo
+    };
+}
+
+// Crear polaroid real para foto
+function crearPolaroidReal(imgSrc, imgIndex) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.loading = 'lazy';
+        img.decoding = 'async';
         
         img.onload = function() {
             const polaroid = document.createElement('div');
             polaroid.className = 'polaroid';
             
-            // Rotación determinista basada en el índice (no aleatoria)
-            // Patrón: -2°, 1°, 0°, -1°, 2°, -2°, 1°, etc.
-            const rotationPattern = [-2, 1, 0, -1, 2, -2, 1, 0, -1, 2];
+            const rotationPattern = [-2, 1, 0, -1, 2];
             const rotation = rotationPattern[imgIndex % rotationPattern.length];
             polaroid.style.setProperty('--rotate', `${rotation}deg`);
             
@@ -79,104 +153,36 @@ function crearPolaroid(imgSrc, imgIndex) {
             imgElement.src = imgSrc;
             imgElement.alt = `Recuerdo ${imgIndex}`;
             imgElement.loading = 'lazy';
+            imgElement.decoding = 'async';
             
             polaroid.appendChild(imgElement);
             
-            const polaroidData = {
+            resolve({
                 element: polaroid,
                 width: width,
                 height: height,
                 aspectRatio: aspectRatio,
-                index: imgIndex // Guardamos el índice para ordenar
-            };
-            
-            allPolaroids.push(polaroidData);
-            resolve(polaroidData);
+                index: imgIndex,
+                isPlaceholder: false
+            });
         };
         
-        img.onerror = () => resolve(null);
+        img.onerror = () => {
+            // Si falla, mantener el placeholder
+            resolve(null);
+        };
         
         img.src = imgSrc;
     });
 }
 
-// Crear controles personalizados para video
-function crearControlesVideo(videoElement, videoPolaroid) {
-    const controlsOverlay = document.createElement('div');
-    controlsOverlay.className = 'video-controls-overlay';
-    
-    const playPauseBtn = document.createElement('button');
-    playPauseBtn.className = 'control-btn play-pause-btn';
-    playPauseBtn.innerHTML = '⏸️';
-    
-    const muteBtn = document.createElement('button');
-    muteBtn.className = 'control-btn mute-btn';
-    muteBtn.innerHTML = '🔇';
-    
-    const fullscreenBtn = document.createElement('button');
-    fullscreenBtn.className = 'control-btn fullscreen-btn';
-    fullscreenBtn.innerHTML = '⛶';
-    
-    controlsOverlay.appendChild(playPauseBtn);
-    controlsOverlay.appendChild(muteBtn);
-    controlsOverlay.appendChild(fullscreenBtn);
-    
-    playPauseBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (videoElement.paused) {
-            videoElement.play();
-            playPauseBtn.innerHTML = '⏸️';
-        } else {
-            videoElement.pause();
-            playPauseBtn.innerHTML = '▶️';
-        }
-    });
-    
-    muteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        videoElement.muted = !videoElement.muted;
-        muteBtn.innerHTML = videoElement.muted ? '🔇' : '🔊';
-    });
-    
-    fullscreenBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (videoElement.requestFullscreen) {
-            videoElement.requestFullscreen();
-        } else if (videoElement.webkitRequestFullscreen) {
-            videoElement.webkitRequestFullscreen();
-        } else if (videoElement.mozRequestFullScreen) {
-            videoElement.mozRequestFullScreen();
-        }
-    });
-    
-    videoElement.addEventListener('play', () => {
-        playPauseBtn.innerHTML = '⏸️';
-    });
-    
-    videoElement.addEventListener('pause', () => {
-        playPauseBtn.innerHTML = '▶️';
-    });
-    
-    videoPolaroid.addEventListener('mouseenter', () => {
-        controlsOverlay.style.opacity = '1';
-    });
-    
-    videoPolaroid.addEventListener('mouseleave', () => {
-        controlsOverlay.style.opacity = '0';
-    });
-    
-    return controlsOverlay;
-}
-
-// Crear polaroid para video (con rotación determinista)
-function crearVideoPolaroid(videoSrc, videoIndex) {
+// Crear video polaroid real
+function crearVideoPolaroidReal(videoSrc, videoIndex) {
     return new Promise((resolve) => {
         const videoPolaroid = document.createElement('div');
         videoPolaroid.className = 'video-polaroid';
         
-        // Rotación determinista basada en el índice (no aleatoria)
-        // Mismo patrón que las fotos para consistencia
-        const rotationPattern = [-2, 1, 0, -1, 2, -2, 1, 0, -1, 2];
+        const rotationPattern = [-2, 1, 0, -1, 2];
         const rotation = rotationPattern[videoIndex % rotationPattern.length];
         videoPolaroid.style.setProperty('--rotate', `${rotation}deg`);
         
@@ -185,100 +191,275 @@ function crearVideoPolaroid(videoSrc, videoIndex) {
         videoElement.loop = true;
         videoElement.muted = true;
         videoElement.playsInline = true;
-        videoElement.preload = "metadata";
+        videoElement.preload = 'metadata';
         videoElement.controls = false;
-        videoElement.style.width = "100%";
-        videoElement.style.height = "auto";
-        videoElement.style.maxHeight = "500px";
-        videoElement.style.objectFit = "contain";
+        videoElement.loading = 'lazy';
         
-        const videoWrapper = document.createElement('div');
-        videoWrapper.style.width = "100%";
-        videoWrapper.style.height = "100%";
-        videoWrapper.style.overflow = "hidden";
-        videoWrapper.style.display = "flex";
-        videoWrapper.style.alignItems = "center";
-        videoWrapper.style.justifyContent = "center";
-        videoWrapper.style.position = "relative";
-        
-        videoWrapper.appendChild(videoElement);
-        videoPolaroid.appendChild(videoWrapper);
-        
-        const controls = crearControlesVideo(videoElement, videoPolaroid);
-        videoWrapper.appendChild(controls);
+        videoPolaroid.appendChild(videoElement);
         
         const videoData = {
             element: videoPolaroid,
             videoElement: videoElement,
-            index: videoIndex
+            index: videoIndex,
+            isPlaceholder: false
         };
         
         videoElement.addEventListener('loadedmetadata', function() {
             if (this.videoWidth && this.videoHeight) {
-                videoData.naturalWidth = this.videoWidth;
-                videoData.naturalHeight = this.videoHeight;
-                videoData.aspectRatio = this.videoHeight / this.videoWidth;
-                
+                const aspectRatio = this.videoHeight / this.videoWidth;
                 const width = config.columnWidth;
-                const height = width * videoData.aspectRatio + 25;
+                const height = width * aspectRatio + 25;
                 
                 videoData.width = width;
                 videoData.height = height;
+                videoData.aspectRatio = aspectRatio;
                 
-                allVideoPolaroids.push(videoData);
                 resolve(videoData);
-                
-                if (isElementInViewport(videoPolaroid)) {
-                    videoElement.play().catch(e => {
-                        console.log("Autoplay bloqueado");
-                    });
-                }
             }
         });
         
         videoElement.onerror = () => {
-            console.error(`Error cargando video: ${videoSrc}`);
+            // Si falla, mantener el placeholder
             resolve(null);
         };
         
+        // Timeout de seguridad
         setTimeout(() => {
             if (!videoData.width) {
                 videoData.width = config.columnWidth;
                 videoData.height = config.columnWidth * 0.75 + 25;
                 videoData.aspectRatio = 0.75;
-                
-                allVideoPolaroids.push(videoData);
                 resolve(videoData);
             }
-        }, 3000);
+        }, 1000);
     });
 }
 
-// Verificar si elemento está en viewport
-function isElementInViewport(el) {
-    const rect = el.getBoundingClientRect();
-    return (
-        rect.top >= 0 &&
-        rect.left >= 0 &&
-        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-    );
+// ===============================
+// ESTRATEGIA 4: CARGAR EN LOTE INTELIGENTE
+// ===============================
+
+// Cargar fotos optimizado
+async function cargarFotosOptimizado() {
+    if (isLoading || fotosCargadas) return;
+    
+    isLoading = true;
+    allPolaroids = [];
+    album.innerHTML = '';
+    
+    // Mostrar loader inmediato
+    const loader = document.createElement('div');
+    loader.className = 'loader';
+    loader.textContent = 'Preparando tus recuerdos... 💜';
+    album.appendChild(loader);
+    
+    try {
+        // PASO 1: Usar cache o verificar rápidamente
+        let fotosEncontradas;
+        
+        if (cache.fotosExistentes) {
+            fotosEncontradas = cache.fotosExistentes;
+            console.log('✅ Usando fotos de cache');
+        } else {
+            loader.textContent = 'Buscando fotos... 💜';
+            fotosEncontradas = await verificarArchivosRapido('assets/img/foto', FOTOS_TOTAL, '.jpg');
+            cache.fotosExistentes = fotosEncontradas;
+            console.log(`✅ Fotos encontradas: ${fotosEncontradas.length}`);
+        }
+        
+        if (fotosEncontradas.length === 0) {
+            loader.textContent = 'No se encontraron fotos';
+            isLoading = false;
+            return;
+        }
+        
+        // PASO 2: Crear placeholders inmediatamente para layout
+        loader.textContent = 'Organizando fotos... 💜';
+        
+        fotosEncontradas.forEach(index => {
+            allPolaroids.push(crearPlaceholderPolaroid(index, false));
+        });
+        
+        // Organizar placeholders inmediatamente
+        organizarMasonryFotos();
+        
+        // Quitar loader después de mostrar placeholders
+        setTimeout(() => {
+            if (loader.parentElement) {
+                loader.remove();
+            }
+        }, 500);
+        
+        // PASO 3: Cargar imágenes reales en segundo plano
+        setTimeout(async () => {
+            const batchSize = 3; // Cargar de a 3 para no sobrecargar
+            const total = fotosEncontradas.length;
+            
+            for (let i = 0; i < total; i += batchSize) {
+                const batch = fotosEncontradas.slice(i, i + batchSize);
+                const promesas = batch.map(index => 
+                    crearPolaroidReal(`assets/img/foto${index}.jpg`, index)
+                );
+                
+                const resultados = await Promise.allSettled(promesas);
+                
+                // Reemplazar placeholders con imágenes reales
+                resultados.forEach((resultado, batchIndex) => {
+                    if (resultado.status === 'fulfilled' && resultado.value) {
+                        const realIndex = i + batchIndex;
+                        const placeholderIndex = allPolaroids.findIndex(p => p.index === batch[batchIndex]);
+                        
+                        if (placeholderIndex !== -1) {
+                            // Reemplazar placeholder con imagen real
+                            const placeholder = allPolaroids[placeholderIndex].element;
+                            const realPolaroid = resultado.value.element;
+                            
+                            // Copiar posición del placeholder
+                            realPolaroid.style.left = placeholder.style.left;
+                            realPolaroid.style.top = placeholder.style.top;
+                            realPolaroid.style.width = placeholder.style.width;
+                            realPolaroid.style.height = resultado.value.height + 'px';
+                            
+                            // Reemplazar en el DOM
+                            placeholder.parentElement.replaceChild(realPolaroid, placeholder);
+                            
+                            // Actualizar en el array
+                            allPolaroids[placeholderIndex] = resultado.value;
+                            
+                            // Observar para animación
+                            observer.observe(realPolaroid);
+                        }
+                    }
+                });
+                
+                // Reorganizar después de cada lote
+                if (i % 9 === 0) { // Cada 3 lotes
+                    organizarMasonryFotos();
+                }
+                
+                // Pequeña pausa para no bloquear el UI
+                if (i % 15 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            }
+            
+            // Organización final
+            organizarMasonryFotos();
+            fotosCargadas = true;
+            console.log(`🎉 Fotos cargadas completamente: ${allPolaroids.length}`);
+            
+        }, 300); // Esperar un poco antes de empezar a cargar
+        
+    } catch (error) {
+        console.error('Error cargando fotos:', error);
+        if (loader.parentElement) {
+            loader.textContent = 'Error cargando las fotos';
+        }
+    }
+    
+    isLoading = false;
 }
 
-// Función para ordenar los polaroids por índice
-function ordenarPolaroidsPorIndice(polaroidsArray) {
-    return polaroidsArray.sort((a, b) => {
-        // Ordenar por índice numérico
-        return a.index - b.index;
-    });
+// Cargar videos optimizado
+async function cargarVideosOptimizado() {
+    if (isLoading || videosCargados) return;
+    
+    isLoading = true;
+    allVideoPolaroids = [];
+    videosContainer.innerHTML = '';
+    
+    const loader = document.createElement('div');
+    loader.className = 'loader';
+    loader.textContent = 'Preparando videos... 💜';
+    videosContainer.appendChild(loader);
+    
+    try {
+        let videosEncontrados;
+        
+        if (cache.videosExistentes) {
+            videosEncontrados = cache.videosExistentes;
+            console.log('✅ Usando videos de cache');
+        } else {
+            loader.textContent = 'Buscando videos... 💜';
+            videosEncontrados = await verificarArchivosRapido('assets/videos/video', VIDEOS_TOTAL, '.mp4');
+            cache.videosExistentes = videosEncontrados;
+            console.log(`✅ Videos encontrados: ${videosEncontrados.length}`);
+        }
+        
+        if (videosEncontrados.length === 0) {
+            loader.textContent = 'No se encontraron videos';
+            isLoading = false;
+            return;
+        }
+        
+        // Crear placeholders inmediatamente
+        videosEncontrados.forEach(index => {
+            allVideoPolaroids.push(crearPlaceholderPolaroid(index, true));
+        });
+        
+        // Organizar placeholders
+        organizarMasonryVideos();
+        
+        // Quitar loader
+        setTimeout(() => {
+            if (loader.parentElement) {
+                loader.remove();
+            }
+        }, 500);
+        
+        // Cargar videos reales en segundo plano
+        setTimeout(async () => {
+            for (let i = 0; i < videosEncontrados.length; i++) {
+                const index = videosEncontrados[i];
+                const videoData = await crearVideoPolaroidReal(`assets/videos/video${index}.mp4`, index);
+                
+                if (videoData) {
+                    // Reemplazar placeholder
+                    const placeholderIndex = allVideoPolaroids.findIndex(v => v.index === index);
+                    if (placeholderIndex !== -1) {
+                        const placeholder = allVideoPolaroids[placeholderIndex].element;
+                        const realVideo = videoData.element;
+                        
+                        // Copiar posición
+                        realVideo.style.left = placeholder.style.left;
+                        realVideo.style.top = placeholder.style.top;
+                        realVideo.style.width = placeholder.style.width;
+                        realVideo.style.height = videoData.height + 'px';
+                        
+                        placeholder.parentElement.replaceChild(realVideo, placeholder);
+                        allVideoPolaroids[placeholderIndex] = videoData;
+                        observer.observe(realVideo);
+                    }
+                }
+                
+                // Pequeña pausa entre videos
+                if (i % 2 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+            
+            organizarMasonryVideos();
+            videosCargados = true;
+            console.log(`🎉 Videos cargados: ${allVideoPolaroids.length}`);
+            
+        }, 300);
+        
+    } catch (error) {
+        console.error('Error cargando videos:', error);
+        if (loader.parentElement) {
+            loader.textContent = 'Error cargando los videos';
+        }
+    }
+    
+    isLoading = false;
 }
 
-// Organizar masonry para fotos (manteniendo orden)
+// ===============================
+// FUNCIONES DE ORGANIZACIÓN (MANTENIDAS)
+// ===============================
+
 function organizarMasonryFotos() {
     if (allPolaroids.length === 0) return;
-    
-    // Ordenar las fotos por índice antes de organizarlas
-    allPolaroids = ordenarPolaroidsPorIndice(allPolaroids);
     
     calcularColumnas();
     const containerWidth = album.clientWidth;
@@ -288,9 +469,14 @@ function organizarMasonryFotos() {
     
     columnHeights.fill(0);
     
+    // Ordenar por índice
+    allPolaroids.sort((a, b) => a.index - b.index);
+    
     allPolaroids.forEach(polaroidData => {
         const polaroid = polaroidData.element;
-        const height = polaroidData.height * (actualColumnWidth / config.columnWidth);
+        const height = polaroidData.isPlaceholder ? 
+            config.columnWidth : 
+            polaroidData.height * (actualColumnWidth / config.columnWidth);
         
         let minHeight = Math.min(...columnHeights);
         let columnIndex = columnHeights.indexOf(minHeight);
@@ -305,7 +491,9 @@ function organizarMasonryFotos() {
         
         if (!polaroid.parentElement) {
             album.appendChild(polaroid);
-            observer.observe(polaroid);
+            if (!polaroidData.isPlaceholder) {
+                observer.observe(polaroid);
+            }
         }
         
         columnHeights[columnIndex] += height + config.gap;
@@ -315,12 +503,8 @@ function organizarMasonryFotos() {
     album.style.height = `${maxHeight + 50}px`;
 }
 
-// Organizar masonry para videos (manteniendo orden)
 function organizarMasonryVideos() {
     if (allVideoPolaroids.length === 0) return;
-    
-    // Ordenar los videos por índice antes de organizarlos
-    allVideoPolaroids = ordenarPolaroidsPorIndice(allVideoPolaroids);
     
     const videosColumns = Math.max(1, Math.floor(videosContainer.clientWidth / (config.columnWidth + config.gap)));
     const videosColumnHeights = new Array(videosColumns).fill(0);
@@ -330,27 +514,23 @@ function organizarMasonryVideos() {
     const availableWidth = containerWidth - totalGapWidth;
     const actualColumnWidth = availableWidth / videosColumns;
     
+    // Ordenar por índice
+    allVideoPolaroids.sort((a, b) => a.index - b.index);
+    
     allVideoPolaroids.forEach(videoData => {
         const videoPolaroid = videoData.element;
         
-        const aspectRatio = videoData.aspectRatio || 0.75;
+        const aspectRatio = videoData.isPlaceholder ? 1 : (videoData.aspectRatio || 0.75);
         const height = actualColumnWidth * aspectRatio + 25;
-        
-        videoData.displayWidth = actualColumnWidth;
-        videoData.displayHeight = height;
         
         videoPolaroid.style.width = `${actualColumnWidth}px`;
         videoPolaroid.style.height = `${height}px`;
-        
-        const videoWrapper = videoPolaroid.querySelector('div');
-        if (videoWrapper) {
-            videoWrapper.style.height = `calc(100% - 25px)`;
-        }
     });
     
     allVideoPolaroids.forEach(videoData => {
         const videoPolaroid = videoData.element;
-        const height = videoData.displayHeight;
+        const aspectRatio = videoData.isPlaceholder ? 1 : (videoData.aspectRatio || 0.75);
+        const height = actualColumnWidth * aspectRatio + 25;
         
         let minHeight = Math.min(...videosColumnHeights);
         let columnIndex = videosColumnHeights.indexOf(minHeight);
@@ -363,7 +543,9 @@ function organizarMasonryVideos() {
         
         if (!videoPolaroid.parentElement) {
             videosContainer.appendChild(videoPolaroid);
-            observer.observe(videoPolaroid);
+            if (!videoData.isPlaceholder) {
+                observer.observe(videoPolaroid);
+            }
         }
         
         videosColumnHeights[columnIndex] += height + config.gap;
@@ -373,175 +555,10 @@ function organizarMasonryVideos() {
     videosContainer.style.height = `${maxHeight + 50}px`;
 }
 
-// Verificar si archivo existe
-function verificarArchivoExiste(url) {
-    return new Promise((resolve) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('HEAD', url, true);
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                resolve(xhr.status === 200);
-            }
-        };
-        xhr.onerror = () => resolve(false);
-        xhr.send();
-    });
-}
+// ===============================
+// EVENT HANDLERS Y INICIALIZACIÓN
+// ===============================
 
-// Cargar fotos en orden numérico
-async function cargarFotos() {
-    if (isLoading || fotosCargadas) return;
-    
-    isLoading = true;
-    allPolaroids = [];
-    album.innerHTML = '';
-    
-    const loader = document.createElement('div');
-    loader.className = 'loader';
-    loader.textContent = 'Cargando tus fotos... 💜';
-    album.appendChild(loader);
-    
-    try {
-        // Primero encontrar TODAS las fotos que existen
-        let fotosExistentes = 0;
-        const fotosEncontradas = [];
-        
-        // Verificar en orden desde 1 hasta 150
-        for (let i = 1; i <= 150; i++) {
-            const existe = await verificarArchivoExiste(`assets/img/foto${i}.jpg`);
-            if (existe) {
-                fotosExistentes++;
-                fotosEncontradas.push(i);
-                console.log(`Foto ${i} encontrada`);
-            }
-            
-            // Si no encontramos ninguna foto en los primeros 10, paramos
-            if (i === 10 && fotosEncontradas.length === 0) {
-                console.log("No se encontraron fotos en los primeros 10 intentos");
-                break;
-            }
-            
-            // Pausa pequeña para no bloquear el navegador
-            if (i % 20 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-        }
-        
-        if (fotosExistentes === 0) {
-            loader.textContent = 'No se encontraron fotos en assets/img/';
-            isLoading = false;
-            return;
-        }
-        
-        console.log(`Total de fotos encontradas: ${fotosExistentes}`);
-        
-        // Cargar las fotos en orden numérico
-        const promesas = [];
-        for (let i of fotosEncontradas) {
-            promesas.push(crearPolaroid(`assets/img/foto${i}.jpg`, i));
-            
-            // Cargar en lotes pequeños para no sobrecargar
-            if (promesas.length % 10 === 0) {
-                await Promise.all(promesas);
-                // Actualizar loader con progreso
-                loader.textContent = `Cargando fotos... ${i}/${fotosExistentes} 💜`;
-            }
-        }
-        
-        // Esperar a que se carguen todas las promesas restantes
-        if (promesas.length > 0) {
-            await Promise.all(promesas);
-        }
-        
-        loader.remove();
-        
-        // Organizar las fotos (ya están ordenadas por índice)
-        organizarMasonryFotos();
-        fotosCargadas = true;
-        
-        console.log(`Fotos cargadas y organizadas: ${allPolaroids.length}`);
-        
-    } catch (error) {
-        console.error('Error cargando fotos:', error);
-        loader.textContent = 'Error cargando las fotos';
-    }
-    
-    isLoading = false;
-}
-
-// Cargar videos en orden numérico
-async function cargarVideos() {
-    if (isLoading || videosCargados) return;
-    
-    isLoading = true;
-    allVideoPolaroids = [];
-    videosContainer.innerHTML = '';
-    
-    const loader = document.createElement('div');
-    loader.className = 'loader';
-    loader.textContent = 'Cargando tus videos... 💜';
-    videosContainer.appendChild(loader);
-    
-    try {
-        // Verificar qué videos existen (del 1 al 13)
-        const videosExistentes = [];
-        
-        for (let i = 1; i <= 14; i++) {
-            const existe = await verificarArchivoExiste(`assets/videos/video${i}.mp4`);
-            if (existe) {
-                videosExistentes.push({
-                    src: `assets/videos/video${i}.mp4`,
-                    caption: `Recuerdo especial ${i}`,
-                    index: i
-                });
-                console.log(`Video ${i} encontrado`);
-            }
-            
-            // Pausa pequeña para no bloquear
-            if (i % 5 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-        }
-        
-        if (videosExistentes.length === 0) {
-            loader.textContent = 'No se encontraron videos en assets/videos/';
-            isLoading = false;
-            return;
-        }
-        
-        console.log(`Total de videos encontrados: ${videosExistentes.length}`);
-        
-        // Cargar los videos en orden numérico
-        const promesas = [];
-        for (let video of videosExistentes) {
-            promesas.push(crearVideoPolaroid(video.src, video.index));
-            
-            // Actualizar progreso
-            if (promesas.length % 3 === 0) {
-                await Promise.all(promesas);
-                loader.textContent = `Cargando videos... ${video.index}/${videosExistentes.length} 💜`;
-            }
-        }
-        
-        if (promesas.length > 0) {
-            await Promise.all(promesas);
-        }
-        
-        loader.remove();
-        organizarMasonryVideos();
-        videosCargados = true;
-        
-        console.log(`Videos cargados y organizados: ${allVideoPolaroids.length}`);
-        
-    } catch (error) {
-        console.error('Error cargando videos:', error);
-        loader.textContent = 'Error cargando los videos';
-    }
-    
-    isLoading = false;
-}
-
-// Cambiar entre fotos y videos
 selectorButtons.forEach(button => {
     button.addEventListener('click', function() {
         const type = this.getAttribute('data-type');
@@ -554,7 +571,7 @@ selectorButtons.forEach(button => {
             videosContainer.style.display = 'none';
             
             if (!fotosCargadas) {
-                cargarFotos();
+                cargarFotosOptimizado();
             } else {
                 organizarMasonryFotos();
             }
@@ -563,7 +580,7 @@ selectorButtons.forEach(button => {
             videosContainer.style.display = 'block';
             
             if (!videosCargados) {
-                cargarVideos();
+                cargarVideosOptimizado();
             } else {
                 organizarMasonryVideos();
             }
@@ -571,27 +588,24 @@ selectorButtons.forEach(button => {
     });
 });
 
-// Navegación entre páginas
+// Inicialización optimizada
 document.addEventListener('DOMContentLoaded', function() {
+    // Navegación
     const navButtons = document.querySelectorAll('.nav-btn');
-    
     navButtons.forEach(button => {
         button.addEventListener('click', function() {
             const page = this.getAttribute('data-page');
-            
-            navButtons.forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-            
             if (page !== window.location.pathname.split('/').pop()) {
                 window.location.href = page;
             }
         });
     });
     
-    // Cargar fotos por defecto (en orden)
+    // Cargar fotos inmediatamente (optimizado)
     calcularColumnas();
-    cargarFotos();
+    cargarFotosOptimizado();
     
+    // Resize optimizado
     let resizeTimer;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimer);
@@ -602,16 +616,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (videosContainer.style.display !== 'none') {
                 organizarMasonryVideos();
             }
-        }, 250);
+        }, 150);
     });
-    
-    const videoObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && !videosCargados && videosContainer.style.display !== 'none') {
-                cargarVideos();
-            }
-        });
-    }, { threshold: 0.1 });
-    
-    videoObserver.observe(videosContainer);
 });

@@ -6,6 +6,7 @@ RESET GENERAL
     padding: 0;
     box-sizing: border-box;
     font-family: 'Segoe UI', sans-serif;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -13,6 +14,7 @@ body {
     color: white;
     min-height: 100vh;
     padding-bottom: 100px;
+    overflow-x: hidden;
 }
 
 /* ===============================
@@ -54,6 +56,7 @@ section {
     margin: auto;
     min-height: 80vh;
     position: relative;
+    box-sizing: border-box;
 }
 
 section h2 {
@@ -91,6 +94,9 @@ section h2 {
     opacity: 0;
     transform: translateY(30px) rotate(var(--rotate));
     overflow: hidden;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 .polaroid img {
@@ -98,6 +104,7 @@ section h2 {
     height: 100%;
     object-fit: cover;
     display: block;
+    content-visibility: auto;
 }
 
 .polaroid:hover {
@@ -108,6 +115,38 @@ section h2 {
 .polaroid.show {
     opacity: 1;
     transform: translateY(0) rotate(var(--rotate)) !important;
+}
+
+/* Placeholder styles */
+.polaroid.placeholder, .video-polaroid.placeholder {
+    background: linear-gradient(45deg, #f0f0f0 25%, #ffffff 25%, #ffffff 50%, #f0f0f0 50%, #f0f0f0 75%, #ffffff 75%, #ffffff);
+    background-size: 20px 20px;
+    animation: placeholder-shimmer 2s linear infinite;
+    border: 2px dashed #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.polaroid.placeholder::before, .video-polaroid.placeholder::before {
+    content: '📸';
+    font-size: 24px;
+    opacity: 0.3;
+    animation: pulse 2s infinite;
+}
+
+.video-polaroid.placeholder::before {
+    content: '🎬';
+}
+
+@keyframes placeholder-shimmer {
+    0% { background-position: -40px 0; }
+    100% { background-position: 40px 0; }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
 }
 
 /* ===============================
@@ -165,6 +204,9 @@ VIDEOS CON ESTILO POLAROID - SIN CONTROLES VISIBLES
     transform: translateY(30px) rotate(var(--rotate));
     overflow: hidden;
     cursor: pointer;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 .video-polaroid video {
@@ -173,6 +215,7 @@ VIDEOS CON ESTILO POLAROID - SIN CONTROLES VISIBLES
     display: block;
     max-height: 500px;
     object-fit: contain;
+    content-visibility: auto;
 }
 
 /* Ocultar todos los controles nativos del video */
@@ -324,7 +367,7 @@ TARJETAS INTERACTIVAS
 }
 
 /* ===============================
-CARTA
+CARTA - RESPONSIVE MEJORADO
 ================================ */
 #carta {
     background: linear-gradient(135deg, #1a0b2e, #0b0b0f);
@@ -333,6 +376,8 @@ CARTA
     align-items: center;
     justify-content: center;
     padding: 40px 20px 180px;
+    width: 100%;
+    overflow-x: hidden;
 }
 
 .carta-container {
@@ -340,14 +385,21 @@ CARTA
     flex-direction: column;
     align-items: center;
     max-width: 800px;
+    width: 100%;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 20px;
     padding: 40px;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    margin: 0 auto;
+    box-sizing: border-box;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    hyphens: auto;
 }
 
 .carta-imagen {
     width: 400px;
+    max-width: 100%;
     height: auto;
     margin-bottom: 30px;
     filter: drop-shadow(0 5px 15px rgba(255, 215, 0, 0.3));
@@ -355,12 +407,15 @@ CARTA
 
 .carta-contenido {
     text-align: center;
+    width: 100%;
 }
 
 .carta-contenido h2 {
     color: #ffd700;
     margin-bottom: 30px;
     font-size: 2.5rem;
+    line-height: 1.2;
+    word-wrap: break-word;
 }
 
 .carta-texto {
@@ -368,19 +423,26 @@ CARTA
     line-height: 1.8;
     color: #e6e6ff;
     text-align: left;
-    max-width: 600px;
+    width: 100%;
     margin: 0 auto;
+    padding: 0;
+    box-sizing: border-box;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
 }
 
 .carta-texto p {
     margin-bottom: 20px;
+    padding: 0 5px;
+    text-align: justify;
+    hyphens: auto;
 }
 
 .firma {
-    margin-top: 40px;
     text-align: center;
     font-style: italic;
     color: #c7bfff;
+    width: 100%;
 }
 
 .nombre {
@@ -436,7 +498,7 @@ NAVEGACIÓN FIJA
 }
 
 /* ===============================
-   LOADER
+LOADER
 ================================ */
 .loader {
     text-align: center;
@@ -463,8 +525,25 @@ NAVEGACIÓN FIJA
     animation: none;
 }
 
+/* Loading animation for better UX */
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
 /* ===============================
-   RESPONSIVE
+RESPONSIVE - MÓVILES
 ================================ */
 @media (max-width: 768px) {
     .hero h1 {
@@ -492,8 +571,14 @@ NAVEGACIÓN FIJA
         grid-template-columns: repeat(2, 1fr);
     }
     
+    /* CARTA EN TABLET */
     .carta-container {
-        padding: 25px;
+        padding: 30px;
+        max-width: 90%;
+    }
+    
+    .carta-imagen {
+        width: 300px;
     }
     
     .carta-contenido h2 {
@@ -501,9 +586,15 @@ NAVEGACIÓN FIJA
     }
     
     .carta-texto {
-        font-size: 1rem;
+        font-size: 1.05rem;
+        padding: 0 10px;
     }
     
+    .carta-texto p {
+        padding: 0 10px;
+    }
+    
+    /* ÁLBUM EN TABLET */
     section {
         padding: 50px 15px 160px;
     }
@@ -512,6 +603,7 @@ NAVEGACIÓN FIJA
         padding-bottom: 180px;
     }
     
+    /* VIDEOS EN TABLET */
     .control-btn {
         width: 35px;
         height: 35px;
@@ -521,6 +613,12 @@ NAVEGACIÓN FIJA
     .video-controls-overlay {
         padding: 15px 10px 8px;
         gap: 10px;
+    }
+    
+    /* POLAROIDS EN TABLET */
+    .polaroid, .video-polaroid {
+        padding: 7px;
+        padding-bottom: 10px;
     }
 }
 
@@ -564,8 +662,57 @@ NAVEGACIÓN FIJA
         padding-bottom: 120px;
     }
     
+    /* CARTA EN MÓVIL PEQUEÑO */
+    #carta {
+        padding-left: 15px;
+        padding-right: 15px;
+        padding-bottom: 160px;
+    }
+
+    .carta-container {
+        padding: 25px 20px;
+        margin: 0 10px;
+        border-radius: 15px;
+        max-width: 95%;
+    }
+    
+    .carta-imagen {
+        width: 280px;
+        max-width: 100%;
+        margin-bottom: 25px;
+    }
+    
+    .carta-contenido h2 {
+        font-size: 1.8rem;
+        margin-bottom: 25px;
+        padding: 0 10px;
+    }
+    
+    .carta-texto {
+        font-size: 1rem;
+        line-height: 1.7;
+        padding: 0;
+    }
+    
+    .carta-texto p {
+        margin-bottom: 18px;
+        padding: 0 8px;
+        text-align: left;
+        hyphens: auto;
+    }
+    
+    .firma {
+        margin-top: 30px;
+        padding: 0 10px;
+    }
+    
+    .nombre {
+        font-size: 1.2rem;
+    }
+    
+    /* VIDEOS EN MÓVIL PEQUEÑO */
     .video-polaroid video {
-        max-height: 400px;
+        max-height: 350px;
     }
     
     .control-btn {
@@ -573,9 +720,59 @@ NAVEGACIÓN FIJA
         height: 30px;
         font-size: 14px;
     }
+    
+    /* POLAROIDS EN MÓVIL PEQUEÑO */
+    .polaroid, .video-polaroid {
+        padding: 5px;
+        padding-bottom: 8px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    
+    /* Desactivar algunas animaciones en móviles muy pequeños */
+    .carta-container:hover {
+        transform: none;
+    }
+    
+    .carta-container:hover .carta-imagen {
+        transform: none;
+    }
 }
 
-/* Para dispositivos táctiles */
+@media (max-width: 360px) {
+    /* Para pantallas muy pequeñas */
+    .carta-container {
+        padding: 20px 15px;
+    }
+    
+    .carta-imagen {
+        width: 240px;
+    }
+    
+    .carta-contenido h2 {
+        font-size: 1.6rem;
+    }
+    
+    .carta-texto {
+        font-size: 0.95rem;
+    }
+    
+    .carta-texto p {
+        padding: 0 5px;
+    }
+    
+    .polaroid, .video-polaroid {
+        padding: 4px;
+        padding-bottom: 6px;
+    }
+    
+    .carta-imagen {
+        width: 200px;
+    }
+}
+
+/* ===============================
+PARA DISPOSITIVOS TÁCTILES
+================================ */
 @media (hover: none) and (pointer: coarse) {
     .video-controls-overlay {
         opacity: 0.7 !important;
@@ -584,34 +781,59 @@ NAVEGACIÓN FIJA
     .video-polaroid {
         cursor: default;
     }
+    
+    /* Reducir efectos hover en táctiles */
+    .polaroid:hover,
+    .video-polaroid:hover,
+    .card:hover,
+    .nav-btn:hover {
+        transform: none !important;
+    }
+    
+    /* Mejorar accesibilidad táctil */
+    .nav-btn, .selector-btn, .control-btn {
+        min-height: 44px; /* Tamaño mínimo táctil */
+    }
 }
 
-* Evita cortes laterales en móvil */
-html, body {
-    overflow-x: hidden;
+/* ===============================
+OPTIMIZACIONES DE PERFORMANCE
+================================ */
+img, video {
+    max-width: 100%;
+    height: auto;
+    -webkit-user-drag: none;
+    user-select: none;
 }
 
-/* Ajustes específicos para carta en móvil */
+/* Prevenir desbordamientos */
+section {
+    max-width: 1200px;
+    width: 100%;
+    padding-left: 20px;
+    padding-right: 20px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+/* Optimizar animaciones con GPU */
+.polaroid, .video-polaroid, .card-inner {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+}
+
+/* Mejorar renderizado de texto */
+.carta-texto, .firma, .nombre {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Asegurar que las imágenes no se salgan en móviles */
 @media (max-width: 480px) {
-    #carta {
-        padding-left: 15px;
-        padding-right: 15px;
-    }
-
-    .carta-container {
-        width: 100%;
-        padding: 20px 15px;
-        box-sizing: border-box;
-    }
-
-    .carta-texto {
+    .polaroid img, .video-polaroid video {
         max-width: 100%;
-        text-align: left;
-    }
-
-    .carta-imagen {
-        max-width: 280px;
-        width: 100%;
         height: auto;
     }
 }
